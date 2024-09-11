@@ -1,0 +1,44 @@
+name: 'Install Java'
+description: 'Installs OpenJDK (user-defined version) on the runner.'
+
+author: 'AjaxerOrg'
+
+branding:
+  icon: 'layers'
+  color: 'blue'
+
+
+inputs:
+  version:
+    description: 'Java version to install (between 8 and 22)'
+    required: true
+    default: '17' # default to Java 17 if no version is provided
+
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install Java ${{ inputs.version }}
+      shell: bash
+      run: |
+        sudo apt-get update
+        case "${{ inputs.version }}" in
+          8|11|17)
+            sudo apt-get install -y openjdk-${{ inputs.version }}-jdk
+            ;;
+          18|19|20|21|22)
+            # For Java 18 and newer, download from Temurin (AdoptOpenJDK successor)
+            JDK_URL="https://github.com/adoptium/temurin${{ inputs.java-version }}-binaries/releases/download/jdk-${{ inputs.java-version }}+36/OpenJDK${{ inputs.java-version }}U-jdk_x64_linux_hotspot_${{ inputs.java-version }}_36.tar.gz"
+            wget -q $JDK_URL -O /tmp/openjdk.tar.gz
+            sudo mkdir -p /usr/lib/jvm
+            sudo tar -xzf /tmp/openjdk.tar.gz -C /usr/lib/jvm
+            sudo update-alternatives --install /usr/bin/java java /usr/lib/jvm/jdk-${{ inputs.java-version }}/bin/java 1
+            sudo update-alternatives --set java /usr/lib/jvm/jdk-${{ inputs.java-version }}/bin/java
+            ;;
+          *)
+            echo "Unsupported Java version: ${{ inputs.java-version }}"
+            exit 1
+            ;;
+        esac
+        java -version
+        echo "JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java))))" >> $GITHUB_ENV
